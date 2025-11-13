@@ -1,46 +1,19 @@
 # Trading Bot API - Dockerfile
-# Multi-stage build for optimal image size
+# Simplified single-stage build using pandas-ta
 
-FROM python:3.11-slim as builder
-
-# Set working directory
-WORKDIR /app
-
-# Install system dependencies for TA-Lib
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    wget \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install TA-Lib from source
-RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
-    tar -xzf ta-lib-0.4.0-src.tar.gz && \
-    cd ta-lib/ && \
-    ./configure --prefix=/usr && \
-    make && \
-    make install && \
-    cd .. && \
-    rm -rf ta-lib ta-lib-0.4.0-src.tar.gz
-
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
-
-# Production stage
 FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
 
-# Copy TA-Lib library from builder
-COPY --from=builder /usr/lib/libta_lib.* /usr/lib/
-COPY --from=builder /usr/include/ta-lib /usr/include/ta-lib
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy Python packages from builder
-COPY --from=builder /root/.local /root/.local
-
-# Make sure scripts in .local are usable
-ENV PATH=/root/.local/bin:$PATH
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY src/ ./src/
