@@ -1,0 +1,87 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing
+.pytest_cache/
+.coverage
+.tox/
+htmlcov/
+.mypy_cache/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs (build fresh in container)
+logs/
+*.log
+
+# Data (don't include in image)
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Documentation
+doc/
+docs/
+*.md
+!README.md
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Docker
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+
+# Environment (use .env.example instead)
+.env
+.env.local
+.env.*.local
+
+# Project files
+.project-mcp.json
+ARCHITECTURE_REVIEW.md
+ARCHITECTURE_REVISION.md
+CODEBASE_AUDIT.md
+IMPLEMENTATION_PROGRESS.md
+Trading Workflow V2.md
+n8nworkflow.txt
+discord_ticker_research.json.txt
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,79 @@
+{
+  "project": {
+    "name": "Discord Trading Bot",
+    "type": "hybrid-api-workflow",
+    "description": "Hybrid architecture: n8n orchestration + Python FastAPI microservice + Supabase for 3-Tier MTF trading analysis",
+    "techStack": ["Python", "FastAPI", "n8n", "Supabase", "Discord API", "Schwab API", "pandas-ta"],
+    "repository": null,
+    "status": "in-development",
+    "completionPct": 35
+  },
+  "mcp": {
+    "defaultProfile": "donnie",
+    "requiredMcps": [
+      "sqlite",
+      "filesystem",
+      "git",
+      "github",
+      "context7",
+      "memory",
+      "sequential-thinking"
+    ],
+    "phaseProfiles": {
+      "development": {
+        "profile": "donnie",
+        "mcps": ["sqlite", "filesystem", "git", "github", "context7", "memory", "sequential-thinking"],
+        "reason": "Python development with database access and complex problem solving"
+      },
+      "workflow-integration": {
+        "profile": "webapp",
+        "mcps": ["n8n", "n8n-workflows-docs", "github", "git", "filesystem"],
+        "reason": "n8n workflow creation and API integration"
+      },
+      "deployment": {
+        "profile": "donnie",
+        "mcps": ["docker", "github", "axiom", "memory"],
+        "reason": "Containerization and deployment to Railway with monitoring"
+      },
+      "testing": {
+        "profile": "donnie",
+        "mcps": ["sqlite", "github", "filesystem", "sequential-thinking"],
+        "reason": "Unit testing and validation"
+      }
+    }
+  },
+  "agents": {
+    "primary": "donnie",
+    "orchestrator": "donnie",
+    "specialized": ["webapp-dev"]
+  },
+  "skills": {
+    "recommended": [
+      "systematic-debugging",
+      "executing-plans",
+      "verification-before-completion"
+    ]
+  },
+  "automation": {
+    "autoLoadProfile": true,
+    "autoDetectPhase": true,
+    "suggestProfileSwitch": true,
+    "displayAvailableTools": true
+  },
+  "context": {
+    "workingDirectory": "C:\\claudeagents\\projects\\discord-trading-bot",
+    "keyFiles": [
+      "src/utils/indicators.py",
+      "src/utils/schwab_api.py",
+      "src/database/db_manager.py",
+      "src/database/schema.sql",
+      "Trading Workflow V2.md",
+      "ARCHITECTURE_REVISION.md",
+      "requirements.txt"
+    ],
+    "currentPhase": "development",
+    "architecture": "hybrid",
+    "deploymentTarget": "railway",
+    "database": "supabase-postgresql"
+  }
+}

@@ -1,0 +1,77 @@
+# 📊 Automated Trading Signal Framework
+
+This document outlines the conceptual framework, the defined signal logic, and implementation suggestions for an automated trading bot built using n8n and Schwab API data. The framework uses a 3-Tier Multi-Timeframe (MTF) analysis structure for both Day Trading and Swing Trading strategies.
+
+---
+
+## 1. Core Framework Concept
+
+The system separates trading styles based on holding duration and uses a three-tier structure for analysis, ensuring scalability and quantifiable logic.
+
+### 🧩 Structure
+| Tier | Purpose | Day Trade Timeframe | Swing Trade Timeframe |
+| :--- | :--- | :--- | :--- |
+| **Higher** | Identify Macro Trend Bias | 1-hour (or 30m) | Weekly |
+| **Middle** | Confirm Trend / Find Setup Zone | 15-min | Daily |
+| **Lower** | Trigger Precision Entry / Stop Sizing | 5-min (or 1m) | 4-hour (or 1h) |
+
+---
+
+## 2. Defined Signal Logic (Quantifiable Rules)
+
+This section defines the core indicators and the standard logic applied universally across all relevant timeframes.
+
+### ⚙️ Core Indicators
+| Indicator | Description | Computation |
+| :--- | :--- | :--- |
+| **EMA20** | Short-term trend / momentum | Exponential Moving Average (Length 20) |
+| **EMA50** | Medium-term trend filter | Exponential Moving Average (Length 50) |
+| **RSI(14)** | Momentum / Overbought-Oversold | Relative Strength Index (Length 14) |
+| **ATR(14)** | Volatility measure / Stop sizing | Average True Range (Length 14) |
+| **VWAP** | Institutional trend bias (Intraday only) | Volume-Weighted Average Price |
+
+### 🔁 Universal Signal Logic
+| Signal Type | Definition (Default) | Outcome |
+| :--- | :--- | :--- |
+| **Trend Bias** | EMA20 > EMA50 $\rightarrow$ Bullish; EMA20 < EMA50 $\rightarrow$ Bearish | Directional bias for higher/middle TFs. |
+| **Momentum Bias** | RSI(14) > 55 $\rightarrow$ Bullish; RSI(14) < 45 $\rightarrow$ Bearish | Confirms or conflicts with trend. |
+| **Entry Trigger** | Price closes above prior 3-bar high **AND** above EMA20 $\rightarrow$ Long Trigger (Lower TF only) | Confirms trade activation point. |
+| **Stop Loss** | Entry Price $\pm$ ATR(14) | Stop placement. |
+| **Target** | Entry Price $\pm$ 2 $\times$ ATR(14) | Take-profit level (2R default). |
+| **Confidence** | +1 per alignment (Trend + Momentum + Trigger/Setup) | Score 0-3. |
+
+---
+
+## 3. Suggestions for Sharpening the Trading Edge
+
+These suggestions enhance the logic by adding filters for strength and conviction.
+
+### ⚔️ Signal Refinement Edges
+
+| Component | Edge Improvement | Proposed Logic |
+| :--- | :--- | :--- |
+| **Higher TF Trend** | **Slope Filter** (Strength) | `IF EMA20 > EMA50` **AND** `(EMA20 slope over 5 bars) > 0.1%` $\rightarrow$ **Strong Bullish** |
+| **Middle TF Momentum** | **Pullback Confirmation** | For a Bullish trend, look for `Price > VWAP` **AND** `45 < RSI < 65` $\rightarrow$ **Ready for Pullback Entry** (Momentum has reset). |
+| **Lower TF Entry** | **Volatility/Conviction Filter** | `IF [3-Bar Breakout Met]` **AND** `(Current Candle Range > 1.25 * ATR(14))` $\rightarrow$ **High Conviction Entry** |
+
+### 🛡️ Risk Management Edges
+
+* **Dynamic R:R:** In counter-trend or choppy market conditions (based on SPY bias or high ATR), automatically reduce the target to **1.5R**.
+* **Time Filter (Day Trade):** **De-prioritize trades** during low volume hours (e.g., 11:30 AM - 1:30 PM EST) by reducing the confidence score.
+* **Market Bias Weighting:** If the **SPY/SPX bias is counter-trend**, the system should flag the stock setup as **"Caution"** and potentially tighten the stop.
+
+---
+
+## 4. Implementation Notes for N8N (Workflow Structure)
+
+Key considerations for a reliable, rate-limit-aware n8n workflow.
+
+### 🚀 Optimization Strategy
+
+1.  **Caching is Critical:** Use the **Static Data** node to implement a **60-second cache** for every `ticker` and `timeframe` request to conserve Schwab API rate limits.
+2.  **Parallel Fetching:** Define all 8 required candle sets (6 for the stock, 2 for SPY) and use the **Split in Batches** node to fetch them in parallel using an **"Execute Workflow"** sub-process (which handles the caching logic).
+3.  **Indicator Computation:** Use a **Function** node to calculate EMA, RSI, ATR, and VWAP locally in JavaScript for all incoming candle sets.
+4.  **Signal Assembly:** A centralized **Function** node should execute the defined Bullish/Bearish/Entry/Stop/Target logic based on all timeframe data.
+5.  **Output Formatting:** Use a final **Set** or **Function** node to assemble the complete Discord message string, including all Markdown formatting and emojis, before sending it via the **Discord** node.
+
+### 💡 Example Final Bot Reply Structure

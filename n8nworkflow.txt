@@ -1,0 +1,162 @@
+{
+  "name": "Discord → Ticker Research → Reply",
+  "nodes": [
+    {
+      "parameters": {
+        "events": ["messageCreate"],
+        "manualTrigger": false
+      },
+      "id": "Discord Trigger",
+      "name": "Discord Trigger",
+      "type": "n8n-nodes-base.discordTrigger",
+      "typeVersion": 1,
+      "position": [220, 240],
+      "credentials": {
+        "discordApi": {
+          "id": "YOUR_DISCORD_CREDENTIAL_ID",
+          "name": "Discord Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            { "value1": "={{$json.channel_id}}", "operation": "equal", "value2": "YOUR_DISCORD_CHANNEL_ID" }
+          ]
+        }
+      },
+      "id": "IF Channel",
+      "name": "IF Channel",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 240]
+    },
+    {
+      "parameters": {
+        "functionCode": "const content = ($json.content || '').trim();\n// Ignore messages from bots\nif ($json.author?.bot) return [];\n// Accept forms like: SPX, $AAPL, analyze MSFT, SPY long\nconst m = content.toUpperCase().match(/(?:^|\\s)(?:\\$)?([A-Z.]{1,6})(?:\\b)/);\nconst ticker = m ? m[1] : null;\nreturn ticker ? [{ ticker, content }] : [];"
+      },
+      "id": "Parse Ticker",
+      "name": "Parse Ticker",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [680, 240]
+    },
+    {
+      "parameters": {
+        "requestMethod": "GET",
+        "url": "https://finnhub.io/api/v1/quote",
+        "queryParametersUi": {
+          "parameter": [
+            { "name": "symbol", "value": "={{$json.ticker}}" },
+            { "name": "token", "value": "YOUR_FINNHUB_API_KEY" }
+          ]
+        }
+      },
+      "id": "HTTP Quote",
+      "name": "HTTP Quote (Finnhub)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 140]
+    },
+    {
+      "parameters": {
+        "requestMethod": "GET",
+        "url": "https://finnhub.io/api/v1/stock/candle",
+        "queryParametersUi": {
+          "parameter": [
+            { "name": "symbol", "value": "={{$json.ticker}}" },
+            { "name": "resolution", "value": "D" },
+            { "name": "from", "value": "={{ Math.floor((Date.now()/1000) - 60*60*24*100) }}" },
+            { "name": "to", "value": "={{ Math.floor(Date.now()/1000) }}" },
+            { "name": "token", "value": "YOUR_FINNHUB_API_KEY" }
+          ]
+        }
+      },
+      "id": "HTTP Candles",
+      "name": "HTTP Candles (Finnhub)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 340]
+    },
+    {
+      "parameters": {
+        "functionCode": "/*\nCompute simple signals:\n- Close series from candles\n- ATR(14) using true range\n- Entry = last close\n- Stop = entry - 1*ATR (long example)\n- Targets = 1R/2R from entry\n*/\nconst quote = $items(\"HTTP Quote\")[0].json;\nconst candles = $items(\"HTTP Candles\")[0].json;\nif (!candles || candles.s !== 'ok') {\n  return [{ note: 'No candle data', entry: null, stop: null, targets: null }];\n}\nconst close = candles.c;\nconst high = candles.h;\nconst low = candles.l;\nif (!close?.length) {\n  return [{ note: 'No close data', entry: null, stop: null, targets: null }];\n}\n// ATR(14)\nfunction atr14(h, l, c){\n  const tr = [];\n  for (let i=0;i<h.length;i++){\n    const prev = i>0 ? c[i-1] : c[i];\n    const tr1 = h[i]-l[i];\n    const tr2 = Math.abs(h[i]-prev);\n    const tr3 = Math.abs(l[i]-prev);\n    tr.push(Math.max(tr1,tr2,tr3));\n  }\n  const period = 14;\n  if (tr.length < period) return null;\n  let atr = tr.slice(0, period).reduce((a,b)=>a+b,0)/period;\n  for (let i=period;i<tr.length;i++){ atr = (atr*(period-1)+tr[i])/period; }\n  return atr;\n}\nconst atr = atr14(high, low, close) || 0;\nconst lastClose = close[close.length-1];\nconst entry = lastClose;\nconst stop = Math.max(0, entry - atr);\nconst r = entry - stop; // 1R\nconst target1 = entry + r;\nconst target2 = entry + 2*r;\nreturn [{\n  ticker: $json.ticker,\n  price: quote.c || lastClose,\n  change: (quote.d !== undefined ? quote.d : null),\n  changePct: (quote.dp !== undefined ? quote.dp : null),\n  entry: Number(entry.toFixed(2)),\n  stop: Number(stop.toFixed(2)),\n  target1: Number(target1.toFixed(2)),\n  target2: Number(target2.toFixed(2)),\n  atr: Number(atr.toFixed(2))\n}];"
+      },
+      "id": "Compute Signals",
+      "name": "Compute Signals",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [1120, 240]
+    },
+    {
+      "parameters": {
+        "requestMethod": "GET",
+        "url": "https://newsapi.org/v2/everything",
+        "queryParametersUi": {
+          "parameter": [
+            { "name": "q", "value": "={{$json.ticker}}" },
+            { "name": "pageSize", "value": "5" },
+            { "name": "sortBy", "value": "publishedAt" },
+            { "name": "apiKey", "value": "YOUR_NEWSAPI_KEY" },
+            { "name": "language", "value": "en" }
+          ]
+        }
+      },
+      "id": "HTTP News",
+      "name": "HTTP News (NewsAPI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1340, 140]
+    },
+    {
+      "parameters": {
+        "functionCode": "const news = $json.articles || [];\nconst top = news.slice(0,3).map(a => `• ${a.title} — ${a.source?.name || ''}`);\nreturn [{ headlines: top.join('\\n') || 'No recent headlines found.' }];"
+      },
+      "id": "Format News",
+      "name": "Format News",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [1540, 140]
+    },
+    {
+      "parameters": {
+        "channelId": "={{$json.channel_id}}",
+        "text": "={{`\n**${$json.ticker}**\nPrice: ${$json.price ?? '—'}  ${$json.changePct !== null ? `(${Number($json.changePct).toFixed(2)}%)` : ''}\n\n**Entry:** ${$json.entry}\n**Stop:** ${$json.stop}\n**Targets:** ${$json.target1} / ${$json.target2}\n**ATR(14):** ${$json.atr}\n\n**Latest News:**\n${$items(\"Format News\")[0].json.headlines}\n`}}",
+        "replyTo": "={{$json.id}}"
+      },
+      "id": "Discord Reply",
+      "name": "Discord (Reply)",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 1,
+      "position": [1740, 240],
+      "credentials": {
+        "discordApi": {
+          "id": "YOUR_DISCORD_CREDENTIAL_ID",
+          "name": "Discord Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Discord Trigger": {
+      "main": [[{ "node": "IF Channel", "type": "main", "index": 0 }]]
+    },
+    "IF Channel": {
+      "main": [
+        [{ "node": "Parse Ticker", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Parse Ticker": {
+      "main": [[{ "node": "HTTP Quote", "type": "main", "index": 0 }, { "node": "HTTP Candles", "type": "main", "index": 0 }]]
+    },
+    "HTTP Quote": { "main": [[{ "node": "Compute Signals", "type": "main", "index": 0 }]] },
+    "HTTP Candles": { "main": [[{ "node": "Compute Signals", "type": "main", "index": 0 }]] },
+    "Compute Signals": {
+      "main": [[{ "node": "HTTP News", "type": "main", "index": 0 }]]
+    },
+    "HTTP News": { "main": [[{ "node": "Format News", "type": "main", "index": 0 }]] },
+    "Format News": { "main": [[{ "node": "Discord Reply", "type": "main", "index": 0 }]] }
+  }
+}
