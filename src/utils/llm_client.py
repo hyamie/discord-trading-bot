@@ -69,7 +69,7 @@ class LLMClient:
             self.provider = None
             self.client = None
             self.model = None
-            logger.warning("   No LLM provider available - rationale will be template-based")
+            logger.warning("ï¿½  No LLM provider available - rationale will be template-based")
 
     def generate_trade_rationale(
         self,
@@ -266,7 +266,7 @@ Be specific and actionable. Suggest 2-3 concrete parameter changes."""
             edges = ', '.join([e['name'] for e in trade.get('edges_applied', []) if e.get('applied')])
 
             formatted.append(
-                f"  " {trade['ticker']} {trade['direction'].upper()} - {outcome} ({pl:+.2f}R) | Edges: {edges or 'None'}"
+                f"  {trade['ticker']} {trade['direction'].upper()} - {outcome} ({pl:+.2f}R) | Edges: {edges or 'None'}"
             )
 
         return "\n".join(formatted)
