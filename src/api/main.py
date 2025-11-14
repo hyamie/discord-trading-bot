@@ -79,7 +79,7 @@ async def lifespan(app: FastAPI):
             )
             logger.info(" Schwab API client initialized")
         else:
-            logger.warning("   Schwab API credentials not found, using fallback")
+            logger.warning("  Schwab API credentials not found, using fallback")
 
         # Initialize Alpha Vantage fallback
         alpha_vantage_key = os.getenv('ALPHA_VANTAGE_API_KEY')
@@ -98,9 +98,9 @@ async def lifespan(app: FastAPI):
             )
             logger.info(" News aggregator initialized")
         else:
-            logger.warning("   News API keys not found, news features disabled")
+            logger.warning("  News API keys not found, news features disabled")
 
-        logger.info("=€ Trading Bot API ready!")
+        logger.info("= Trading Bot API ready!")
 
     except Exception as e:
         logger.error(f"L Startup failed: {str(e)}")
@@ -213,7 +213,7 @@ async def analyze_ticker(request: AnalysisRequest):
     Raises:
         HTTPException: If analysis fails or data unavailable
     """
-    logger.info(f"=Ê Analyzing {request.ticker} ({request.trade_type})")
+    logger.info(f"= Analyzing {request.ticker} ({request.trade_type})")
 
     try:
         # 1. Check cache first
@@ -221,7 +221,7 @@ async def analyze_ticker(request: AnalysisRequest):
         cached_result = db_manager.get_cached_data(cache_key)
 
         if cached_result:
-            logger.info(f"=¾ Returning cached result for {request.ticker}")
+            logger.info(f"= Returning cached result for {request.ticker}")
             return AnalysisResponse(**cached_result)
 
         # 2. Fetch price data
