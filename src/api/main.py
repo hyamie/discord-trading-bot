@@ -93,7 +93,7 @@ async def lifespan(app: FastAPI):
 
         if finnhub_key or newsapi_key:
             news_aggregator = NewsAggregator(
-                finnhub_api_key=finnhub_key,
+                finnhub_key=finnhub_key,
                 newsapi_key=newsapi_key
             )
             logger.info(" News aggregator initialized")
