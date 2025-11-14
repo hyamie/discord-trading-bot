@@ -12,9 +12,11 @@ pandas==2.1.4
 numpy==1.26.2
 
 # Technical Analysis
-# TA-Lib==0.4.28  # Removed - using pandas-ta instead for easier deployment
-pandas-ta
+# TA-Lib==0.4.28  # Removed - too complex to install
+# pandas-ta - Not available on PyPI
+# Using yfinance and manual calculations instead
 yfinance==0.2.33
+ta==0.11.0
 
 # Database (Supabase PostgreSQL)
 psycopg2-binary==2.9.9
