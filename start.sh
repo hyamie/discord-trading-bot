@@ -11,5 +11,5 @@ echo "Files in src/api/:"
 ls -la src/api/
 echo "========================================="
 
-# Start the application
-exec uvicorn src.api.main_minimal:app --host 0.0.0.0 --port ${PORT:-8000}
+# Start the application (full version now that Railway is configured)
+exec uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8000}
