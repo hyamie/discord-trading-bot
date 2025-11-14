@@ -59,7 +59,7 @@ async def lifespan(app: FastAPI):
     try:
         # Initialize database
         db_manager = DatabaseManager(os.getenv('DATABASE_PATH', 'data/trading_bot.db'))
-        db_manager.initialize()
+        # Database auto-initializes in __init__
         logger.info(" Database initialized")
 
         # Initialize analysis engine
