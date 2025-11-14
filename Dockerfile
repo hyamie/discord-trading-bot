@@ -1,5 +1,6 @@
 # Trading Bot API - Dockerfile
 # Simplified single-stage build using pandas-ta
+# Updated: 2025-11-14 - Fixed llm_client.py syntax error
 
 FROM python:3.11-slim
 
