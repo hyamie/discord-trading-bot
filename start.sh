@@ -11,5 +11,14 @@ echo "Files in src/api/:"
 ls -la src/api/
 echo "========================================="
 
-# Start the application (full version now that Railway is configured)
-exec uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Test import before starting
+echo "Testing main.py import..."
+python -c "from src.api.main import app; print('SUCCESS: main.py imported')" 2>&1 || {
+    echo "FAILED: main.py import error"
+    echo "Falling back to minimal app"
+    exec uvicorn src.api.main_minimal:app --host 0.0.0.0 --port ${PORT:-8000}
+}
+
+# Start the application (full version)
+echo "Starting full application..."
+exec uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level debug
