@@ -13,7 +13,7 @@ numpy==1.26.2
 
 # Technical Analysis
 # TA-Lib==0.4.28  # Removed - using pandas-ta instead for easier deployment
-pandas-ta==0.3.14b0
+pandas-ta
 yfinance==0.2.33
 
 # Database (Supabase PostgreSQL)
