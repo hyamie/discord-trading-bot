@@ -265,7 +265,13 @@ async def analyze_ticker(request: AnalysisRequest):
         )
 
         # 7. Cache result (60 seconds TTL)
-        db_manager.cache_data(cache_key, response.model_dump(), ttl=60)
+        db_manager.set_cached_data(
+            cache_key=cache_key,
+            ticker=request.ticker,
+            timeframe="both",
+            data=response.model_dump(),
+            ttl_seconds=60
+        )
 
         # 8. Log API call
         db_manager.log_api_call({
