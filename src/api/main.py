@@ -275,11 +275,11 @@ async def analyze_ticker(request: AnalysisRequest):
 
         # 8. Log API call
         db_manager.log_api_call({
+            'api_name': 'trading_api',
             'endpoint': '/analyze',
             'ticker': request.ticker,
-            'trade_type': request.trade_type.value,
-            'plans_generated': len(trade_plans),
-            'highest_confidence': response.highest_confidence
+            'status_code': 200,
+            'success': True
         })
 
         logger.info(f" Analysis complete: {len(trade_plans)} plans, confidence {response.highest_confidence}")
