@@ -53,3 +53,4 @@ htmlcov/
 # Node (if using n8n)
 node_modules/
 package-lock.json
+.env.supabase
