@@ -269,7 +269,7 @@ async def analyze_ticker(request: AnalysisRequest):
             cache_key=cache_key,
             ticker=request.ticker,
             timeframe="both",
-            data=response.model_dump(),
+            data=response.model_dump(mode='json'),
             ttl_seconds=60
         )
 
