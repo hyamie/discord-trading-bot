@@ -72,14 +72,12 @@ async def lifespan(app: FastAPI):
         schwab_api_key = os.getenv('SCHWAB_API_KEY')
         schwab_api_secret = os.getenv('SCHWAB_API_SECRET')
         schwab_redirect_uri = os.getenv('SCHWAB_REDIRECT_URI')
-        schwab_refresh_token = os.getenv('SCHWAB_REFRESH_TOKEN')  # Optional
 
         if schwab_api_key and schwab_api_secret:
             schwab_client = SchwabAPIClient(
                 api_key=schwab_api_key,
                 api_secret=schwab_api_secret,
-                redirect_uri=schwab_redirect_uri,
-                refresh_token=schwab_refresh_token
+                redirect_uri=schwab_redirect_uri
             )
             logger.info(" Schwab API client initialized")
         else:
