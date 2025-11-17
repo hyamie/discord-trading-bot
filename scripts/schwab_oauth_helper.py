@@ -5,9 +5,13 @@ One-time script to obtain refresh token for server deployment
 """
 
 import os
+import sys
+import json
 import webbrowser
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+from datetime import datetime, timedelta
+from pathlib import Path
 from dotenv import load_dotenv
 import base64
 import requests
@@ -21,9 +25,31 @@ APP_SECRET = os.getenv('SCHWAB_API_SECRET')
 REDIRECT_URI = os.getenv('SCHWAB_REDIRECT_URI', 'https://127.0.0.1:8080/callback')
 AUTH_URL = 'https://api.schwabapi.com/v1/oauth/authorize'
 TOKEN_URL = 'https://api.schwabapi.com/v1/oauth/token'
+TOKEN_METADATA_FILE = Path("data/schwab_token_metadata.json")
 
 # Global to store the authorization code
 auth_code = None
+
+
+def save_token_metadata(refresh_token: str, created_at: datetime = None):
+    """Save token metadata for monitoring"""
+    if created_at is None:
+        created_at = datetime.now()
+
+    TOKEN_METADATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    metadata = {
+        'refresh_token': refresh_token,
+        'created_at': created_at.isoformat(),
+        'expires_at': (created_at + timedelta(days=7)).isoformat(),
+        'last_updated': datetime.now().isoformat()
+    }
+
+    with open(TOKEN_METADATA_FILE, 'w') as f:
+        json.dump(metadata, f, indent=2)
+
+    print(f"💾 Token metadata saved to: {TOKEN_METADATA_FILE}")
+    print(f"   Expires at: {metadata['expires_at']}")
 
 
 class CallbackHandler(BaseHTTPRequestHandler):
@@ -153,23 +179,31 @@ def exchange_code_for_tokens(code):
 
         print("✅ Tokens obtained successfully!")
         print()
+
+        # Save metadata for monitoring
+        refresh_token = token_data.get('refresh_token', '')
+        if refresh_token:
+            save_token_metadata(refresh_token)
+
+        print()
         print("=" * 70)
         print("🎉 SUCCESS! Save these values to Railway:")
         print("=" * 70)
         print()
-        print("SCHWAB_REFRESH_TOKEN=" + token_data.get('refresh_token', 'N/A'))
+        print("SCHWAB_REFRESH_TOKEN=" + refresh_token)
         print()
         print("=" * 70)
         print()
         print("📋 Next Steps:")
         print("  1. Copy the SCHWAB_REFRESH_TOKEN value above")
         print("  2. Go to Railway → Your Project → Variables")
-        print("  3. Add new variable: SCHWAB_REFRESH_TOKEN")
+        print("  3. Add or update variable: SCHWAB_REFRESH_TOKEN")
         print("  4. Paste the token value")
         print("  5. Railway will automatically redeploy")
         print()
         print("⏰ Important: Refresh token expires in 7 days")
-        print("   Re-run this script weekly to stay authenticated")
+        print("   Run 'python scripts/schwab_token_monitor.py' daily to check status")
+        print("   Automated reminders available via Windows Task Scheduler")
         print()
 
         return token_data
