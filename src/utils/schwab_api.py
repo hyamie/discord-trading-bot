@@ -21,17 +21,15 @@ class SchwabAPIClient:
         api_key: str,
         api_secret: str,
         redirect_uri: str,
-        refresh_token: Optional[str] = None,
-        base_url: str = "https://api.schwabapi.com"
+        base_url: str = "https://api.schwab.com"
     ):
         """
         Initialize Schwab API client
 
         Args:
-            api_key: Schwab API key (App Key from developer portal)
+            api_key: Schwab API key
             api_secret: Schwab API secret
             redirect_uri: OAuth redirect URI
-            refresh_token: Optional pre-existing refresh token
             base_url: Schwab API base URL
         """
         self.api_key = api_key
@@ -40,21 +38,13 @@ class SchwabAPIClient:
         self.base_url = base_url
 
         self.access_token = None
-        self.refresh_token = refresh_token
+        self.refresh_token = None
         self.token_expires_at = None
 
         # Rate limiting (120 calls/min)
         self.rate_limit = 120
         self.rate_window = 60  # seconds
         self.call_timestamps = []
-
-        # Auto-authenticate if we have a refresh token
-        if self.refresh_token:
-            logger.info("Refresh token provided, attempting authentication...")
-            if self._refresh_access_token():
-                logger.info("✅ Schwab API authenticated successfully")
-            else:
-                logger.error("❌ Failed to authenticate with refresh token")
 
     def _wait_for_rate_limit(self):
         """Implement rate limiting by waiting if necessary"""
@@ -144,33 +134,19 @@ class SchwabAPIClient:
             return False
 
         try:
-            import base64
-
-            url = f"{self.base_url}/v1/oauth/token"
-
-            # Create Basic Auth header
-            credentials = f"{self.api_key}:{self.api_secret}"
-            encoded_credentials = base64.b64encode(credentials.encode()).decode()
-
-            headers = {
-                'Authorization': f'Basic {encoded_credentials}',
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
-
+            url = f"{self.base_url}/oauth/token"
             data = {
                 'grant_type': 'refresh_token',
-                'refresh_token': self.refresh_token
+                'refresh_token': self.refresh_token,
+                'client_id': self.api_key,
+                'client_secret': self.api_secret
             }
 
-            response = requests.post(url, headers=headers, data=data)
+            response = requests.post(url, data=data)
             response.raise_for_status()
 
             token_data = response.json()
             self.access_token = token_data['access_token']
-            # Note: Schwab may return a new refresh token
-            if 'refresh_token' in token_data:
-                self.refresh_token = token_data['refresh_token']
-                logger.info("Received new refresh token")
             expires_in = token_data.get('expires_in', 1800)
             self.token_expires_at = time.time() + expires_in
 
