@@ -169,6 +169,11 @@ async def debug_yfinance(ticker: str):
         return {"error": "YFinance client not initialized"}
 
     try:
+        # Test raw yfinance import
+        import yfinance as yf
+        stock = yf.Ticker(ticker)
+        raw_data = stock.history(period="1d", interval="1h")
+
         # Test individual calls
         test_1h = yfinance_client.get_price_history(ticker, period="1mo", interval="1h")
         test_15m = yfinance_client.get_price_history(ticker, period="5d", interval="15m")
@@ -180,6 +185,11 @@ async def debug_yfinance(ticker: str):
         result = {
             "ticker": ticker,
             "yfinance_client_exists": yfinance_client is not None,
+            "raw_yfinance_test": {
+                "bars": len(raw_data) if not raw_data.empty else 0,
+                "columns": list(raw_data.columns) if not raw_data.empty else [],
+                "empty": raw_data.empty
+            },
             "individual_tests": {
                 "1h": test_1h is not None and len(test_1h) if test_1h is not None else "None",
                 "15m": test_15m is not None and len(test_15m) if test_15m is not None else "None",
