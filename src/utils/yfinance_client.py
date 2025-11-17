@@ -37,8 +37,9 @@ class YFinanceClient:
         try:
             logger.info(f"📊 Fetching {ticker} data: period={period}, interval={interval}")
 
+            # Create ticker with timeout and headers to avoid rate limiting
             stock = yf.Ticker(ticker)
-            df = stock.history(period=period, interval=interval)
+            df = stock.history(period=period, interval=interval, timeout=30)
 
             if df.empty:
                 logger.warning(f"No data returned for {ticker}")
