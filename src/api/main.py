@@ -90,7 +90,7 @@ async def lifespan(app: FastAPI):
             alpha_vantage_client = AlphaVantageClient(api_key=alpha_vantage_key)
             logger.info(" Alpha Vantage fallback initialized")
 
-n        # Initialize YFinance fallback (always available, free)
+# Initialize YFinance fallback (always available, free)
         yfinance_client = YFinanceClient()
         logger.info("✅ YFinance fallback initialized")
         # Initialize news aggregator
