@@ -324,16 +324,18 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
                 {'period_type': 'day', 'frequency_type': 'minute', 'frequency': 5, 'period': 1},    # 5m
             ]
 
+            # Try Schwab first, then fallback to yfinance
+            day_data = None
             if schwab_client:
-                day_data = schwab_client.get_multiple_timeframes(ticker, day_configs)
-                price_data['day'] = day_data
-            elif alpha_vantage_client:
-                # Fallback to Alpha Vantage
-                logger.warning("Using Alpha Vantage fallback for day trade data")
-                # TODO: Implement Alpha Vantage multi-timeframe fetch
-                pass
-            elif yfinance_client:
-                # Fallback to YFinance
+                try:
+                    day_data = schwab_client.get_multiple_timeframes(ticker, day_configs)
+                    if day_data:
+                        price_data['day'] = day_data
+                except Exception as e:
+                    logger.warning(f"Schwab day data fetch failed: {str(e)}")
+
+            # Fallback to yfinance if Schwab didn't work
+            if not day_data and yfinance_client:
                 logger.info(f"Using YFinance for {ticker} day trade data")
                 day_data = yfinance_client.get_day_trade_data(ticker)
                 if day_data:
@@ -346,16 +348,18 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
                 {'period_type': 'month', 'frequency_type': 'minute', 'frequency': 240, 'period': 1}, # 4h
             ]
 
+            # Try Schwab first, then fallback to yfinance
+            swing_data = None
             if schwab_client:
-                swing_data = schwab_client.get_multiple_timeframes(ticker, swing_configs)
-                price_data['swing'] = swing_data
-            elif alpha_vantage_client:
-                # Fallback to Alpha Vantage
-                logger.warning("Using Alpha Vantage fallback for swing trade data")
-                # TODO: Implement Alpha Vantage multi-timeframe fetch
-                pass
-            elif yfinance_client:
-                # Fallback to YFinance
+                try:
+                    swing_data = schwab_client.get_multiple_timeframes(ticker, swing_configs)
+                    if swing_data:
+                        price_data['swing'] = swing_data
+                except Exception as e:
+                    logger.warning(f"Schwab swing data fetch failed: {str(e)}")
+
+            # Fallback to yfinance if Schwab didn't work
+            if not swing_data and yfinance_client:
                 logger.info(f"Using YFinance for {ticker} swing trade data")
                 swing_data = yfinance_client.get_swing_trade_data(ticker)
                 if swing_data:
