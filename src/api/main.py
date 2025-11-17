@@ -27,6 +27,7 @@ from src.api.models import (
 from src.agents.analysis_engine import AnalysisEngine
 from src.utils.schwab_api import SchwabAPIClient, AlphaVantageClient
 from src.utils.news_api import NewsAggregator
+from src.utils.yfinance_client import YFinanceClient
 from src.database.db_manager import DatabaseManager
 
 # Load environment variables
@@ -44,6 +45,7 @@ logger.add(
 analysis_engine: AnalysisEngine = None
 schwab_client: SchwabAPIClient = None
 alpha_vantage_client: AlphaVantageClient = None
+yfinance_client: YFinanceClient = None
 news_aggregator: NewsAggregator = None
 db_manager: DatabaseManager = None
 
@@ -51,7 +53,7 @@ db_manager: DatabaseManager = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
-    global analysis_engine, schwab_client, alpha_vantage_client, news_aggregator, db_manager
+    global analysis_engine, schwab_client, alpha_vantage_client, yfinance_client, news_aggregator, db_manager
 
     # Startup
     logger.info("Starting Trading Bot API...")
@@ -87,6 +89,9 @@ async def lifespan(app: FastAPI):
             alpha_vantage_client = AlphaVantageClient(api_key=alpha_vantage_key)
             logger.info(" Alpha Vantage fallback initialized")
 
+n        # Initialize YFinance fallback (always available, free)
+        yfinance_client = YFinanceClient()
+        logger.info("✅ YFinance fallback initialized")
         # Initialize news aggregator
         finnhub_key = os.getenv('FINNHUB_API_KEY')
         newsapi_key = os.getenv('NEWSAPI_KEY')
@@ -326,6 +331,11 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
                 logger.warning("Using Alpha Vantage fallback for day trade data")
                 # TODO: Implement Alpha Vantage multi-timeframe fetch
                 pass
+            elif yfinance_client:
+                # Fallback to YFinance
+                logger.info(f"Using YFinance for {ticker} day trade data")
+                day_data = yfinance_client.get_day_trade_data(ticker)
+                price_data = day_data if day_data else price_data
 
         if trade_type in [TradeType.SWING, TradeType.BOTH]:
             swing_configs = [
@@ -342,11 +352,20 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
                 logger.warning("Using Alpha Vantage fallback for swing trade data")
                 # TODO: Implement Alpha Vantage multi-timeframe fetch
                 pass
+            elif yfinance_client:
+                # Fallback to YFinance
+                logger.info(f"Using YFinance for {ticker} swing trade data")
+                swing_data = yfinance_client.get_swing_trade_data(ticker)
+                price_data = swing_data if swing_data else price_data
 
         # Fetch SPY for market bias
         if schwab_client:
             spy_data = schwab_client.get_price_history('SPY', 'day', 'minute', 60, 1)
             price_data['spy'] = spy_data
+        elif yfinance_client:
+            spy_data = yfinance_client.get_price_history('SPY', period='5d', interval='1h')
+            if spy_data is not None:
+                price_data['spy'] = spy_data
 
         return price_data
 
