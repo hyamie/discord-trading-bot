@@ -82,6 +82,7 @@ async def lifespan(app: FastAPI):
             logger.info(" Schwab API client initialized")
         else:
             logger.warning("  Schwab API credentials not found, using fallback")
+            schwab_client = None
 
         # Initialize Alpha Vantage fallback
         alpha_vantage_key = os.getenv('ALPHA_VANTAGE_API_KEY')
@@ -335,7 +336,8 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
                 # Fallback to YFinance
                 logger.info(f"Using YFinance for {ticker} day trade data")
                 day_data = yfinance_client.get_day_trade_data(ticker)
-                price_data = day_data if day_data else price_data
+                if day_data:
+                    price_data.update(day_data)
 
         if trade_type in [TradeType.SWING, TradeType.BOTH]:
             swing_configs = [
@@ -356,7 +358,8 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
                 # Fallback to YFinance
                 logger.info(f"Using YFinance for {ticker} swing trade data")
                 swing_data = yfinance_client.get_swing_trade_data(ticker)
-                price_data = swing_data if swing_data else price_data
+                if swing_data:
+                    price_data.update(swing_data)
 
         # Fetch SPY for market bias
         if schwab_client:
