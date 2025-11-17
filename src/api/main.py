@@ -169,28 +169,48 @@ async def debug_yfinance(ticker: str):
         return {"error": "YFinance client not initialized"}
 
     try:
+        # Test individual calls
+        test_1h = yfinance_client.get_price_history(ticker, period="1mo", interval="1h")
+        test_15m = yfinance_client.get_price_history(ticker, period="5d", interval="15m")
+        test_5m = yfinance_client.get_price_history(ticker, period="1d", interval="5m")
+
+        # Get full day data
         day_data = yfinance_client.get_day_trade_data(ticker)
+
         result = {
             "ticker": ticker,
-            "timeframes": len(day_data) if day_data else 0,
-            "keys": list(day_data.keys()) if day_data else [],
-            "details": {}
+            "yfinance_client_exists": yfinance_client is not None,
+            "individual_tests": {
+                "1h": test_1h is not None and len(test_1h) if test_1h is not None else "None",
+                "15m": test_15m is not None and len(test_15m) if test_15m is not None else "None",
+                "5m": test_5m is not None and len(test_5m) if test_5m is not None else "None"
+            },
+            "day_data": {
+                "timeframes": len(day_data) if day_data else 0,
+                "keys": list(day_data.keys()) if day_data else [],
+                "details": {}
+            }
         }
 
         if day_data:
             for key, df in day_data.items():
                 if df is not None and hasattr(df, '__len__'):
-                    result["details"][key] = {
+                    result["day_data"]["details"][key] = {
                         "bars": len(df),
                         "columns": list(df.columns),
                         "latest_close": float(df['close'].iloc[-1]) if 'close' in df.columns else None
                     }
                 else:
-                    result["details"][key] = "None or invalid"
+                    result["day_data"]["details"][key] = "None or invalid"
 
         return result
     except Exception as e:
-        return {"error": str(e), "type": type(e).__name__}
+        import traceback
+        return {
+            "error": str(e),
+            "type": type(e).__name__,
+            "traceback": traceback.format_exc()
+        }
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
