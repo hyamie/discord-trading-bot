@@ -106,7 +106,9 @@ class SchwabAPIClient:
                 'client_secret': self.api_secret
             }
 
-            response = requests.post(url, data=data)
+            # Use Basic Auth for client credentials
+            auth = (self.api_key, self.api_secret)
+            response = requests.post(url, data=data, auth=auth)
             response.raise_for_status()
 
             token_data = response.json()
@@ -137,12 +139,12 @@ class SchwabAPIClient:
             url = f"{self.base_url}/v1/oauth/token"
             data = {
                 'grant_type': 'refresh_token',
-                'refresh_token': self.refresh_token,
-                'client_id': self.api_key,
-                'client_secret': self.api_secret
+                'refresh_token': self.refresh_token
             }
 
-            response = requests.post(url, data=data)
+            # Use Basic Auth for client credentials
+            auth = (self.api_key, self.api_secret)
+            response = requests.post(url, data=data, auth=auth)
             response.raise_for_status()
 
             token_data = response.json()
