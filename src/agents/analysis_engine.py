@@ -95,7 +95,7 @@ class AnalysisEngine:
         lower_tf = price_data.get('lower')   # 5m
         spy_data = price_data.get('spy')
 
-        if not all([higher_tf, middle_tf, lower_tf]):
+        if higher_tf is None or middle_tf is None or lower_tf is None:
             logger.warning(f"Missing timeframe data for {ticker} day trade")
             return None
 
@@ -213,7 +213,7 @@ class AnalysisEngine:
         lower_tf = price_data.get('lower_swing')    # 4h
         spy_data = price_data.get('spy_swing')
 
-        if not all([higher_tf, middle_tf, lower_tf]):
+        if higher_tf is None or middle_tf is None or lower_tf is None:
             logger.warning(f"Missing timeframe data for {ticker} swing trade")
             return None
 
