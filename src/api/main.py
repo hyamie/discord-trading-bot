@@ -79,9 +79,22 @@ async def lifespan(app: FastAPI):
                 api_secret=schwab_api_secret,
                 redirect_uri=schwab_redirect_uri
             )
-            logger.info(" Schwab API client initialized")
+            logger.info("Schwab API client initialized")
+
+            # Authenticate with refresh token
+            schwab_refresh_token = os.getenv('SCHWAB_REFRESH_TOKEN')
+            if schwab_refresh_token:
+                schwab_client.refresh_token = schwab_refresh_token
+                if schwab_client.authenticate():
+                    logger.info("Schwab API authenticated successfully")
+                else:
+                    logger.warning("Schwab authentication failed, will use fallback")
+                    schwab_client = None
+            else:
+                logger.warning("No Schwab refresh token found, will use fallback")
+                schwab_client = None
         else:
-            logger.warning("  Schwab API credentials not found, using fallback")
+            logger.warning("Schwab API credentials not found, using fallback")
             schwab_client = None
 
         # Initialize Alpha Vantage fallback
