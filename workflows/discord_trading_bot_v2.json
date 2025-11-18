@@ -1,0 +1,150 @@
+{
+  "name": "Discord Trading Bot V2 (FastAPI)",
+  "nodes": [
+    {
+      "parameters": {
+        "events": ["messageCreate"],
+        "manualTrigger": false
+      },
+      "id": "discord-trigger",
+      "name": "Discord Trigger",
+      "type": "n8n-nodes-base.discordTrigger",
+      "typeVersion": 1,
+      "position": [220, 300],
+      "webhookId": "auto-generated",
+      "credentials": {
+        "discordApi": {
+          "id": "REPLACE_WITH_YOUR_DISCORD_CREDENTIAL_ID",
+          "name": "Discord Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse ticker from Discord message\nconst content = ($json.content || '').trim();\n\n// Ignore messages from bots\nif ($json.author?.bot) {\n  return [];\n}\n\n// Don't process if message doesn't look like a ticker request\nif (!content || content.length < 1) {\n  return [];\n}\n\n// Accept forms like: SPY, $AAPL, analyze MSFT, !ticker SPY, check QQQ\nconst tickerMatch = content.toUpperCase().match(/(?:^|\\s)(?:\\$|!ticker\\s+|analyze\\s+|check\\s+)?([A-Z]{1,5})(?:\\s|$)/);\n\nif (!tickerMatch) {\n  return [];\n}\n\nconst ticker = tickerMatch[1];\n\n// Determine trade type from message content\nlet trade_type = 'day'; // default\nif (content.toLowerCase().includes('swing')) {\n  trade_type = 'swing';\n} else if (content.toLowerCase().includes('both')) {\n  trade_type = 'both';\n}\n\nreturn [{\n  ticker: ticker,\n  trade_type: trade_type,\n  channel_id: $json.channel_id,\n  message_id: $json.id,\n  author: $json.author?.username || 'Unknown'\n}];"
+      },
+      "id": "parse-ticker",
+      "name": "Parse Ticker & Trade Type",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord-trading-bot-production-f596.up.railway.app/analyze",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "ticker",
+              "value": "={{ $json.ticker }}"
+            },
+            {
+              "name": "trade_type",
+              "value": "={{ $json.trade_type }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "call-fastapi",
+      "name": "Call FastAPI /analyze",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Format the analysis response for Discord\nconst data = $json;\nconst ticker = data.ticker || 'UNKNOWN';\nconst plans = data.plans || [];\n\nif (plans.length === 0) {\n  return [{\n    response: `**${ticker}** - No trade setups found\\n\\n` +\n              `The 3-Tier Multi-Timeframe analysis did not find any high-confidence trade setups. ` +\n              `This typically means:\\n` +\n              `• Trends don't align across timeframes\\n` +\n              `• Market is ranging/choppy\\n` +\n              `• No clear entry trigger\\n\\n` +\n              `*This is good - the bot avoids low-probability trades!*`,\n    channel_id: $('Parse Ticker & Trade Type').item.json.channel_id,\n    message_id: $('Parse Ticker & Trade Type').item.json.message_id\n  }];\n}\n\n// Format the highest confidence plan\nconst plan = plans[0]; // Plans are sorted by confidence\n\nconst directionEmoji = plan.direction === 'long' ? '📈' : '📉';\nconst confidenceStars = '⭐'.repeat(Math.min(plan.confidence, 5));\n\n// Format edges\nconst edgesText = plan.edges_applied && plan.edges_applied.length > 0\n  ? plan.edges_applied.map(e => `✓ ${e}`).join('\\n')\n  : 'None';\n\n// Build response\nconst response = `${directionEmoji} **${ticker}** - ${plan.trade_type.toUpperCase()} TRADE SETUP\\n\\n` +\n  `**Direction:** ${plan.direction.toUpperCase()}\\n` +\n  `**Confidence:** ${plan.confidence}/5 ${confidenceStars}\\n\\n` +\n  `**Entry:** $${plan.entry}\\n` +\n  `**Stop:** $${plan.stop}\\n` +\n  `**Target 1:** $${plan.target2 || plan.target} (1R)\\n` +\n  `**Target 2:** $${plan.target} (2R)\\n` +\n  `**Risk/Reward:** ${plan.risk_reward}R\\n\\n` +\n  `**Edges Applied:**\\n${edgesText}\\n\\n` +\n  `**Rationale:**\\n${plan.rationale}\\n\\n` +\n  `**Risk Notes:**\\n${plan.risk_notes}\\n\\n` +\n  `*Analysis Timestamp: ${new Date(data.analysis_timestamp).toLocaleString('en-US', { timeZone: 'America/Chicago' })} CT*`;\n\n// If there are multiple plans, mention it\nlet additionalPlans = '';\nif (plans.length > 1) {\n  additionalPlans = `\\n\\n*Note: ${plans.length - 1} additional ${plans.length - 1 === 1 ? 'plan' : 'plans'} available with lower confidence*`;\n}\n\nreturn [{\n  response: response + additionalPlans,\n  channel_id: $('Parse Ticker & Trade Type').item.json.channel_id,\n  message_id: $('Parse Ticker & Trade Type').item.json.message_id\n}];"
+      },
+      "id": "format-response",
+      "name": "Format Discord Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "channelId": "={{ $json.channel_id }}",
+        "content": "={{ $json.response }}",
+        "additionalFields": {
+          "messageReference": {
+            "messageId": "={{ $json.message_id }}"
+          }
+        }
+      },
+      "id": "discord-reply",
+      "name": "Discord Reply",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [1100, 300],
+      "credentials": {
+        "discordApi": {
+          "id": "REPLACE_WITH_YOUR_DISCORD_CREDENTIAL_ID",
+          "name": "Discord Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "channelId": "={{ $json.channel_id }}",
+        "content": "⚠️ Error analyzing **{{ $json.ticker }}**: {{ $json.error }}\\n\\nPlease try again or contact support if the issue persists."
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [880, 480],
+      "credentials": {
+        "discordApi": {
+          "id": "REPLACE_WITH_YOUR_DISCORD_CREDENTIAL_ID",
+          "name": "Discord Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Discord Trigger": {
+      "main": [[{"node": "Parse Ticker & Trade Type", "type": "main", "index": 0}]]
+    },
+    "Parse Ticker & Trade Type": {
+      "main": [[{"node": "Call FastAPI /analyze", "type": "main", "index": 0}]]
+    },
+    "Call FastAPI /analyze": {
+      "main": [
+        [{"node": "Format Discord Response", "type": "main", "index": 0}]
+      ]
+    },
+    "Format Discord Response": {
+      "main": [[{"node": "Discord Reply", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-11-18T00:00:00.000Z",
+  "versionId": "1"
+}
