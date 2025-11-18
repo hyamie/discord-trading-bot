@@ -404,7 +404,7 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
                 try:
                     day_data = schwab_client.get_multiple_timeframes(ticker, day_configs)
                     if day_data:
-                        price_data['day'] = day_data
+                        price_data.update(day_data)
                 except Exception as e:
                     logger.warning(f"Schwab day data fetch failed: {str(e)}")
 
@@ -428,7 +428,7 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
                 try:
                     swing_data = schwab_client.get_multiple_timeframes(ticker, swing_configs)
                     if swing_data:
-                        price_data['swing'] = swing_data
+                        price_data.update(swing_data)
                 except Exception as e:
                     logger.warning(f"Schwab swing data fetch failed: {str(e)}")
 
