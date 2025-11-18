@@ -236,6 +236,56 @@ async def debug_yfinance(ticker: str):
         }
 
 
+@app.get("/debug/schwab/{ticker}", tags=["Debug"])
+async def debug_schwab(ticker: str, trade_type: str = "day"):
+    """Debug endpoint to test Schwab API data fetching"""
+    if not schwab_client:
+        return {"error": "Schwab client not initialized"}
+
+    try:
+        # Test authentication
+        auth_status = schwab_client._ensure_authenticated()
+
+        # Fetch price data
+        price_data = await fetch_price_data(ticker, trade_type)
+
+        result = {
+            "ticker": ticker,
+            "trade_type": trade_type,
+            "schwab_client_exists": schwab_client is not None,
+            "authenticated": auth_status,
+            "price_data": {
+                "exists": price_data is not None,
+                "timeframes": len(price_data) if price_data else 0,
+                "keys": list(price_data.keys()) if price_data else [],
+                "details": {}
+            }
+        }
+
+        if price_data:
+            for key, df in price_data.items():
+                if df is not None and hasattr(df, '__len__'):
+                    result["price_data"]["details"][key] = {
+                        "bars": len(df),
+                        "columns": list(df.columns),
+                        "first_timestamp": str(df.index[0]) if len(df) > 0 else None,
+                        "last_timestamp": str(df.index[-1]) if len(df) > 0 else None,
+                        "latest_close": float(df['close'].iloc[-1]) if 'close' in df.columns and len(df) > 0 else None
+                    }
+                else:
+                    result["price_data"]["details"][key] = "None or invalid"
+
+        return result
+
+    except Exception as e:
+        import traceback
+        return {
+            "error": str(e),
+            "type": type(e).__name__,
+            "traceback": traceback.format_exc()
+        }
+
+
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
 async def health_check():
     """
