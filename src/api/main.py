@@ -392,10 +392,14 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
     try:
         # Determine timeframes based on trade type
         if trade_type in [TradeType.DAY, TradeType.BOTH]:
+            # Use datetime ranges for Schwab API (more reliable than period/frequency)
+            from datetime import datetime, timedelta
+            now = datetime.now()
+
             day_configs = [
-                {'name': 'higher', 'period_type': 'day', 'frequency_type': 'minute', 'frequency': 60, 'period': 5},   # 1h
-                {'name': 'middle', 'period_type': 'day', 'frequency_type': 'minute', 'frequency': 15, 'period': 5},   # 15m
-                {'name': 'lower', 'period_type': 'day', 'frequency_type': 'minute', 'frequency': 5, 'period': 1},    # 5m
+                {'name': 'higher', 'frequency_type': 'minute', 'frequency': 30, 'start_datetime': now - timedelta(days=5)},   # 30m bars (closest to 1h), 5 days
+                {'name': 'middle', 'frequency_type': 'minute', 'frequency': 15, 'start_datetime': now - timedelta(days=3)},   # 15m bars, 3 days
+                {'name': 'lower', 'frequency_type': 'minute', 'frequency': 5, 'start_datetime': now - timedelta(days=1)},     # 5m bars, 1 day
             ]
 
             # Try Schwab first, then fallback to yfinance
@@ -416,10 +420,13 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
                     price_data.update(day_data)
 
         if trade_type in [TradeType.SWING, TradeType.BOTH]:
+            from datetime import datetime, timedelta
+            now = datetime.now()
+
             swing_configs = [
-                {'name': 'higher', 'period_type': 'month', 'frequency_type': 'weekly', 'frequency': 1, 'period': 6},  # Weekly
-                {'name': 'middle', 'period_type': 'month', 'frequency_type': 'daily', 'frequency': 1, 'period': 3},   # Daily
-                {'name': 'lower', 'period_type': 'month', 'frequency_type': 'minute', 'frequency': 240, 'period': 1}, # 4h
+                {'name': 'higher', 'frequency_type': 'weekly', 'frequency': 1, 'start_datetime': now - timedelta(days=180)},  # Weekly bars, 6 months
+                {'name': 'middle', 'frequency_type': 'daily', 'frequency': 1, 'start_datetime': now - timedelta(days=90)},    # Daily bars, 3 months
+                {'name': 'lower', 'frequency_type': 'minute', 'frequency': 30, 'start_datetime': now - timedelta(days=7)},    # 30m bars (best available), 1 week
             ]
 
             # Try Schwab first, then fallback to yfinance

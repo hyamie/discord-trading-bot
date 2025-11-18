@@ -198,8 +198,13 @@ class SchwabAPIClient:
             url = f"{self.base_url}{endpoint}"
             headers = {
                 'Authorization': f'Bearer {self.access_token}',
-                'Content-Type': 'application/json'
+                'X-API-Key': self.api_key,
+                'Accept': 'application/json'
             }
+
+            # Only add Content-Type for POST requests
+            if method != 'GET':
+                headers['Content-Type'] = 'application/json'
 
             start_time = time.time()
 
@@ -221,6 +226,13 @@ class SchwabAPIClient:
 
         except requests.exceptions.HTTPError as e:
             logger.error(f"Schwab API HTTP error: {e}")
+            # Log response body for debugging
+            try:
+                error_body = e.response.text
+                logger.error(f"Schwab API error response: {error_body}")
+            except:
+                pass
+
             if e.response.status_code == 429:
                 logger.warning("Rate limit exceeded, backing off...")
                 time.sleep(60)
@@ -237,31 +249,52 @@ class SchwabAPIClient:
         period: int = 10,
         frequency_type: str = 'minute',
         frequency: int = 5,
-        extended_hours: bool = True
+        extended_hours: bool = True,
+        start_datetime: datetime = None,
+        end_datetime: datetime = None
     ) -> Optional[pd.DataFrame]:
         """
         Get price history for a ticker
 
         Args:
             ticker: Stock ticker symbol
-            period_type: 'day', 'month', 'year', 'ytd'
-            period: Number of periods (depends on period_type)
+            period_type: 'day', 'month', 'year', 'ytd' (ignored if using datetime range)
+            period: Number of periods (ignored if using datetime range)
             frequency_type: 'minute', 'daily', 'weekly', 'monthly'
             frequency: Frequency value (1, 5, 10, 15, 30 for minute)
             extended_hours: Include extended hours data
+            start_datetime: Start datetime for range (preferred over period)
+            end_datetime: End datetime for range (defaults to now)
 
         Returns:
             DataFrame with OHLCV data or None
         """
         endpoint = "/marketdata/v1/pricehistory"
-        params = {
-            'symbol': ticker.upper(),
-            'periodType': period_type,
-            'period': period,
-            'frequencyType': frequency_type,
-            'frequency': frequency,
-            'needExtendedHoursData': str(extended_hours).lower()
-        }
+
+        # Use datetime range if provided (recommended approach)
+        if start_datetime is not None:
+            import time
+            if end_datetime is None:
+                end_datetime = datetime.now()
+
+            params = {
+                'symbol': ticker.upper(),
+                'frequencyType': frequency_type,
+                'frequency': frequency,
+                'startDate': int(start_datetime.timestamp() * 1000),  # milliseconds
+                'endDate': int(end_datetime.timestamp() * 1000),
+                'needExtendedHoursData': str(extended_hours).lower()
+            }
+        else:
+            # Fallback to period-based (may have validation issues)
+            params = {
+                'symbol': ticker.upper(),
+                'periodType': period_type,
+                'period': period,
+                'frequencyType': frequency_type,
+                'frequency': frequency,
+                'needExtendedHoursData': str(extended_hours).lower()
+            }
 
         data = self._make_request(endpoint, params)
 
@@ -308,8 +341,9 @@ class SchwabAPIClient:
         Returns:
             Quote data or None
         """
-        endpoint = f"/marketdata/v1/quotes/{ticker.upper()}"
-        data = self._make_request(endpoint)
+        endpoint = f"/marketdata/v1/quotes"
+        params = {'symbols': ticker.upper()}
+        data = self._make_request(endpoint, params)
 
         if data and ticker.upper() in data:
             return data[ticker.upper()]
