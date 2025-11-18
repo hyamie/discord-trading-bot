@@ -79,22 +79,9 @@ async def lifespan(app: FastAPI):
                 api_secret=schwab_api_secret,
                 redirect_uri=schwab_redirect_uri
             )
-            logger.info("Schwab API client initialized")
-
-            # Authenticate with refresh token
-            schwab_refresh_token = os.getenv('SCHWAB_REFRESH_TOKEN')
-            if schwab_refresh_token:
-                schwab_client.refresh_token = schwab_refresh_token
-                if schwab_client.authenticate():
-                    logger.info("Schwab API authenticated successfully")
-                else:
-                    logger.warning("Schwab authentication failed, will use fallback")
-                    schwab_client = None
-            else:
-                logger.warning("No Schwab refresh token found, will use fallback")
-                schwab_client = None
+            logger.info(" Schwab API client initialized")
         else:
-            logger.warning("Schwab API credentials not found, using fallback")
+            logger.warning("  Schwab API credentials not found, using fallback")
             schwab_client = None
 
         # Initialize Alpha Vantage fallback
@@ -307,7 +294,7 @@ async def analyze_ticker(request: AnalysisRequest):
         # 2. Fetch price data
         price_data = await fetch_price_data(request.ticker, request.trade_type)
 
-        if not price_data or all(v is None for v in price_data.values()):
+        if not price_data:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=f"Unable to fetch price data for {request.ticker}"
@@ -392,14 +379,10 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
     try:
         # Determine timeframes based on trade type
         if trade_type in [TradeType.DAY, TradeType.BOTH]:
-            # Use datetime ranges for Schwab API (more reliable than period/frequency)
-            from datetime import datetime, timedelta
-            now = datetime.now()
-
             day_configs = [
-                {'name': 'higher', 'frequency_type': 'minute', 'frequency': 30, 'start_datetime': now - timedelta(days=5)},   # 30m bars (closest to 1h), 5 days
-                {'name': 'middle', 'frequency_type': 'minute', 'frequency': 15, 'start_datetime': now - timedelta(days=3)},   # 15m bars, 3 days
-                {'name': 'lower', 'frequency_type': 'minute', 'frequency': 5, 'start_datetime': now - timedelta(days=1)},     # 5m bars, 1 day
+                {'period_type': 'day', 'frequency_type': 'minute', 'frequency': 60, 'period': 5},   # 1h
+                {'period_type': 'day', 'frequency_type': 'minute', 'frequency': 15, 'period': 5},   # 15m
+                {'period_type': 'day', 'frequency_type': 'minute', 'frequency': 5, 'period': 1},    # 5m
             ]
 
             # Try Schwab first, then fallback to yfinance
@@ -408,7 +391,7 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
                 try:
                     day_data = schwab_client.get_multiple_timeframes(ticker, day_configs)
                     if day_data:
-                        price_data.update(day_data)
+                        price_data['day'] = day_data
                 except Exception as e:
                     logger.warning(f"Schwab day data fetch failed: {str(e)}")
 
@@ -420,13 +403,10 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
                     price_data.update(day_data)
 
         if trade_type in [TradeType.SWING, TradeType.BOTH]:
-            from datetime import datetime, timedelta
-            now = datetime.now()
-
             swing_configs = [
-                {'name': 'higher', 'frequency_type': 'weekly', 'frequency': 1, 'start_datetime': now - timedelta(days=180)},  # Weekly bars, 6 months
-                {'name': 'middle', 'frequency_type': 'daily', 'frequency': 1, 'start_datetime': now - timedelta(days=90)},    # Daily bars, 3 months
-                {'name': 'lower', 'frequency_type': 'minute', 'frequency': 30, 'start_datetime': now - timedelta(days=7)},    # 30m bars (best available), 1 week
+                {'period_type': 'month', 'frequency_type': 'weekly', 'frequency': 1, 'period': 6},  # Weekly
+                {'period_type': 'month', 'frequency_type': 'daily', 'frequency': 1, 'period': 3},   # Daily
+                {'period_type': 'month', 'frequency_type': 'minute', 'frequency': 240, 'period': 1}, # 4h
             ]
 
             # Try Schwab first, then fallback to yfinance
@@ -435,7 +415,7 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
                 try:
                     swing_data = schwab_client.get_multiple_timeframes(ticker, swing_configs)
                     if swing_data:
-                        price_data.update(swing_data)
+                        price_data['swing'] = swing_data
                 except Exception as e:
                     logger.warning(f"Schwab swing data fetch failed: {str(e)}")
 

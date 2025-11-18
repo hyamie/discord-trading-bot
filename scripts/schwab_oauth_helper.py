@@ -68,28 +68,30 @@ class CallbackHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
-            self.wfile.write(b"""
+            html_response = """
                 <html>
                 <head><title>Authorization Successful</title></head>
                 <body>
-                <h1>✅ Authorization Successful!</h1>
+                <h1>Authorization Successful!</h1>
                 <p>You can close this window and return to the terminal.</p>
                 </body>
                 </html>
-            """)
+            """
+            self.wfile.write(html_response.encode('utf-8'))
         else:
             self.send_response(400)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
-            self.wfile.write(b"""
+            html_error = """
                 <html>
                 <head><title>Authorization Failed</title></head>
                 <body>
-                <h1>❌ Authorization Failed</h1>
+                <h1>Authorization Failed</h1>
                 <p>No authorization code received.</p>
                 </body>
                 </html>
-            """)
+            """
+            self.wfile.write(html_error.encode('utf-8'))
 
     def log_message(self, format, *args):
         """Suppress default logging"""
@@ -104,7 +106,7 @@ def get_authorization_code():
     print()
 
     if not APP_KEY or not APP_SECRET:
-        print("❌ ERROR: Missing Schwab API credentials!")
+        print("[ERROR] ERROR: Missing Schwab API credentials!")
         print()
         print("Please set these environment variables:")
         print("  SCHWAB_API_KEY=your_app_key")
@@ -144,10 +146,10 @@ def get_authorization_code():
     server.server_close()
 
     if auth_code:
-        print("✅ Authorization code received!")
+        print("[OK] Authorization code received!")
         return auth_code
     else:
-        print("❌ Failed to receive authorization code")
+        print("[ERROR] Failed to receive authorization code")
         return None
 
 
@@ -177,7 +179,7 @@ def exchange_code_for_tokens(code):
 
         token_data = response.json()
 
-        print("✅ Tokens obtained successfully!")
+        print("[OK] Tokens obtained successfully!")
         print()
 
         # Save metadata for monitoring
@@ -187,21 +189,21 @@ def exchange_code_for_tokens(code):
 
         print()
         print("=" * 70)
-        print("🎉 SUCCESS! Save these values to Railway:")
+        print("[SUCCESS] Save these values to Railway:")
         print("=" * 70)
         print()
         print("SCHWAB_REFRESH_TOKEN=" + refresh_token)
         print()
         print("=" * 70)
         print()
-        print("📋 Next Steps:")
+        print("[INFO] Next Steps:")
         print("  1. Copy the SCHWAB_REFRESH_TOKEN value above")
         print("  2. Go to Railway → Your Project → Variables")
         print("  3. Add or update variable: SCHWAB_REFRESH_TOKEN")
         print("  4. Paste the token value")
         print("  5. Railway will automatically redeploy")
         print()
-        print("⏰ Important: Refresh token expires in 7 days")
+        print("[REMINDER] Important: Refresh token expires in 7 days")
         print("   Run 'python scripts/schwab_token_monitor.py' daily to check status")
         print("   Automated reminders available via Windows Task Scheduler")
         print()
@@ -209,7 +211,7 @@ def exchange_code_for_tokens(code):
         return token_data
 
     except requests.exceptions.RequestException as e:
-        print(f"❌ Error exchanging code for tokens: {e}")
+        print(f"[ERROR] Error exchanging code for tokens: {e}")
         if hasattr(e, 'response') and e.response is not None:
             print(f"Response: {e.response.text}")
         return None
@@ -221,19 +223,19 @@ def main():
     code = get_authorization_code()
 
     if not code:
-        print("❌ Authentication failed - no authorization code")
+        print("[ERROR] Authentication failed - no authorization code")
         return
 
     # Step 2: Exchange for tokens
     tokens = exchange_code_for_tokens(code)
 
     if not tokens:
-        print("❌ Authentication failed - couldn't get tokens")
+        print("[ERROR] Authentication failed - couldn't get tokens")
         return
 
-    print("✅ Authentication complete!")
+    print("[OK] Authentication complete!")
     print()
-    print("Your bot can now access real-time Schwab market data! 🚀")
+    print("Your bot can now access real-time Schwab market data!")
 
 
 if __name__ == '__main__':
