@@ -447,10 +447,12 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
             now = datetime.now()
 
             # Use period/frequency approach for Schwab (datetime ranges don't work well for intraday)
+            # NOTE: Schwab only provides multi-day data for 1-min and 30-min frequencies
+            # Valid period values for periodType=day: [1, 2, 3, 4, 5, 10]
             day_configs = [
                 {'name': 'higher', 'period_type': 'day', 'period': 10, 'frequency_type': 'minute', 'frequency': 30},  # 30m bars, 10 days
                 {'name': 'middle', 'period_type': 'month', 'period': 1, 'frequency_type': 'daily', 'frequency': 1},   # Daily bars, 1 month
-                {'name': 'lower', 'period_type': 'day', 'period': 5, 'frequency_type': 'minute', 'frequency': 5},     # 5m bars, 5 days (if Schwab supports it)
+                {'name': 'lower', 'period_type': 'day', 'period': 5, 'frequency_type': 'minute', 'frequency': 1},     # 1-min bars, 5 days
             ]
 
             # Try Schwab first, then fallback to yfinance
