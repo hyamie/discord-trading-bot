@@ -1,0 +1,101 @@
+{
+  "name": "Discord Trading Bot V3 (Webhook)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "7c5a5975-6273-4a10-bf2b-c43b830b0975",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [220, 300],
+      "webhookId": "7c5a5975-6273-4a10-bf2b-c43b830b0975"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse ticker from Discord message\nconst content = ($input.item.json.body.content || '').trim();\n\n// Ignore messages from bots\nif ($input.item.json.body.author?.bot) {\n  return [];\n}\n\n// Don't process if message doesn't look like a ticker request\nif (!content || content.length < 1) {\n  return [];\n}\n\n// Accept forms like: SPY, $AAPL, analyze MSFT, !ticker SPY, check QQQ\nconst tickerMatch = content.toUpperCase().match(/(?:^|\\s)(?:\\$|!ticker\\s+|analyze\\s+|check\\s+)?([A-Z]{1,5})(?:\\s|$)/);\n\nif (!tickerMatch) {\n  return [];\n}\n\nconst ticker = tickerMatch[1];\n\n// Determine trade type from message content\nlet trade_type = 'both'; // default - always return both day and swing plans\nif (content.toLowerCase().includes('day only')) {\n  trade_type = 'day';\n} else if (content.toLowerCase().includes('swing only')) {\n  trade_type = 'swing';\n}\n\nreturn {\n  ticker: ticker,\n  trade_type: trade_type,\n  channel_id: $input.item.json.body.channel_id,\n  message_id: $input.item.json.body.id,\n  author: $input.item.json.body.author?.username || 'Unknown'\n};"
+      },
+      "id": "parse-ticker",
+      "name": "Parse Ticker & Trade Type",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord-trading-bot-production-f596.up.railway.app/analyze",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={\n  \"ticker\": \"{{ $json.ticker }}\",\n  \"trade_type\": \"{{ $json.trade_type }}\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "call-fastapi",
+      "name": "Call FastAPI /analyze",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format the analysis response for Discord\nconst data = $input.item.json;\nconst ticker = data.ticker || 'UNKNOWN';\nconst plans = data.plans || [];\n\nif (plans.length === 0) {\n  return {\n    response: `**${ticker}** - No trade setups found\\n\\n` +\n              `The 3-Tier Multi-Timeframe analysis did not find any high-confidence trade setups. ` +\n              `This typically means:\\n` +\n              `• Trends don't align across timeframes\\n` +\n              `• Market is ranging/choppy\\n` +\n              `• No clear entry trigger\\n\\n` +\n              `*This is good - the bot avoids low-probability trades!*`\n  };\n}\n\n// Helper function to format a single plan\nfunction formatPlan(plan, ticker) {\n  const directionEmoji = plan.direction === 'long' ? '📈' : '📉';\n  const confidenceStars = '⭐'.repeat(Math.min(plan.confidence, 5));\n  \n  const edgesText = plan.edges_applied && plan.edges_applied.length > 0\n    ? plan.edges_applied.map(e => `✓ ${e}`).join('\\n')\n    : 'None';\n  \n  return `${directionEmoji} **${ticker}** - ${plan.trade_type.toUpperCase()} TRADE\\n\\n` +\n    `**Direction:** ${plan.direction.toUpperCase()}\\n` +\n    `**Confidence:** ${plan.confidence}/5 ${confidenceStars}\\n\\n` +\n    `**Entry:** $${plan.entry}\\n` +\n    `**Stop:** $${plan.stop}\\n` +\n    `**Target 1:** $${plan.target2 || plan.target} (1R)\\n` +\n    `**Target 2:** $${plan.target} (2R)\\n` +\n    `**Risk/Reward:** ${plan.risk_reward}R\\n\\n` +\n    `**Edges:**\\n${edgesText}\\n\\n` +\n    `**Rationale:**\\n${plan.rationale}\\n\\n` +\n    `**Risk Notes:** ${plan.risk_notes}`;\n}\n\n// Format all plans, separated by dividers\nconst formattedPlans = plans.map(plan => formatPlan(plan, ticker)).join('\\n\\n' + '─'.repeat(50) + '\\n\\n');\n\nconst response = formattedPlans + '\\n\\n' +\n  `*Analysis: ${new Date(data.analysis_timestamp).toLocaleString('en-US', { timeZone: 'America/Chicago' })} CT*`;\n\nreturn {\n  response: response\n};"
+      },
+      "id": "format-response",
+      "name": "Format Discord Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"response\": $json.response } }}"
+      },
+      "id": "webhook-response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Parse Ticker & Trade Type", "type": "main", "index": 0}]]
+    },
+    "Parse Ticker & Trade Type": {
+      "main": [[{"node": "Call FastAPI /analyze", "type": "main", "index": 0}]]
+    },
+    "Call FastAPI /analyze": {
+      "main": [[{"node": "Format Discord Response", "type": "main", "index": 0}]]
+    },
+    "Format Discord Response": {
+      "main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-11-18T00:00:00.000Z",
+  "versionId": "3"
+}
