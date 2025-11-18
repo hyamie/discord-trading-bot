@@ -21,7 +21,7 @@ class SchwabAPIClient:
         api_key: str,
         api_secret: str,
         redirect_uri: str,
-        base_url: str = "https://api.schwab.com"
+        base_url: str = "https://api.schwabapi.com"
     ):
         """
         Initialize Schwab API client
@@ -97,7 +97,7 @@ class SchwabAPIClient:
             True if successful
         """
         try:
-            url = f"{self.base_url}/oauth/token"
+            url = f"{self.base_url}/v1/oauth/token"
             data = {
                 'grant_type': 'authorization_code',
                 'code': auth_code,
@@ -134,7 +134,7 @@ class SchwabAPIClient:
             return False
 
         try:
-            url = f"{self.base_url}/oauth/token"
+            url = f"{self.base_url}/v1/oauth/token"
             data = {
                 'grant_type': 'refresh_token',
                 'refresh_token': self.refresh_token,
