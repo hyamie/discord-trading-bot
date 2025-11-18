@@ -393,9 +393,9 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
         # Determine timeframes based on trade type
         if trade_type in [TradeType.DAY, TradeType.BOTH]:
             day_configs = [
-                {'period_type': 'day', 'frequency_type': 'minute', 'frequency': 60, 'period': 5},   # 1h
-                {'period_type': 'day', 'frequency_type': 'minute', 'frequency': 15, 'period': 5},   # 15m
-                {'period_type': 'day', 'frequency_type': 'minute', 'frequency': 5, 'period': 1},    # 5m
+                {'name': 'higher', 'period_type': 'day', 'frequency_type': 'minute', 'frequency': 60, 'period': 5},   # 1h
+                {'name': 'middle', 'period_type': 'day', 'frequency_type': 'minute', 'frequency': 15, 'period': 5},   # 15m
+                {'name': 'lower', 'period_type': 'day', 'frequency_type': 'minute', 'frequency': 5, 'period': 1},    # 5m
             ]
 
             # Try Schwab first, then fallback to yfinance
@@ -417,9 +417,9 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
 
         if trade_type in [TradeType.SWING, TradeType.BOTH]:
             swing_configs = [
-                {'period_type': 'month', 'frequency_type': 'weekly', 'frequency': 1, 'period': 6},  # Weekly
-                {'period_type': 'month', 'frequency_type': 'daily', 'frequency': 1, 'period': 3},   # Daily
-                {'period_type': 'month', 'frequency_type': 'minute', 'frequency': 240, 'period': 1}, # 4h
+                {'name': 'higher', 'period_type': 'month', 'frequency_type': 'weekly', 'frequency': 1, 'period': 6},  # Weekly
+                {'name': 'middle', 'period_type': 'month', 'frequency_type': 'daily', 'frequency': 1, 'period': 3},   # Daily
+                {'name': 'lower', 'period_type': 'month', 'frequency_type': 'minute', 'frequency': 240, 'period': 1}, # 4h
             ]
 
             # Try Schwab first, then fallback to yfinance
