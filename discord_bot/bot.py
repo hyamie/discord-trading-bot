@@ -37,21 +37,31 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # Prepare message data for n8n
+    # Only process messages that start with $ or !ticker
+    # Examples: $SPY, !ticker AAPL
+    content = message.content.strip()
+    if not (content.startswith('$') or content.lower().startswith('!ticker ')):
+        # Allow other commands to work (like !ping, !health)
+        await bot.process_commands(message)
+        return
+
+    # Prepare message data for n8n (wrapped in 'body' for n8n compatibility)
     payload = {
-        'content': message.content,
-        'author': {
-            'id': str(message.author.id),
-            'username': message.author.name,
-            'bot': message.author.bot
-        },
-        'channel_id': str(message.channel.id),
-        'id': str(message.id),
-        'guild_id': str(message.guild.id) if message.guild else None,
-        'timestamp': message.created_at.isoformat()
+        'body': {
+            'content': message.content,
+            'author': {
+                'id': str(message.author.id),
+                'username': message.author.name,
+                'bot': message.author.bot
+            },
+            'channel_id': str(message.channel.id),
+            'id': str(message.id),
+            'guild_id': str(message.guild.id) if message.guild else None,
+            'timestamp': message.created_at.isoformat()
+        }
     }
 
-    print(f'📨 Received message from {message.author.name}: {message.content[:50]}...')
+    print(f'📨 Processing ticker request from {message.author.name}: {message.content}')
 
     try:
         # Forward to n8n webhook
@@ -74,6 +84,7 @@ async def on_message(message):
                 print(f'ℹ️  n8n processed but no response needed')
         else:
             print(f'⚠️  n8n webhook returned status {response.status_code}')
+            await message.reply(f'⚠️ Error: Webhook returned {response.status_code}')
 
     except requests.exceptions.Timeout:
         print(f'⏱️  n8n webhook timeout (analysis may take longer)')
