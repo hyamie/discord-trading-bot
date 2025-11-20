@@ -29,6 +29,7 @@ from src.utils.schwab_api import SchwabAPIClient, AlphaVantageClient
 from src.utils.news_api import NewsAggregator
 from src.utils.yfinance_client import YFinanceClient
 from src.database.db_manager import DatabaseManager
+from src.database.trade_logger import get_trade_logger
 
 # Load environment variables
 load_dotenv()
@@ -48,12 +49,13 @@ alpha_vantage_client: AlphaVantageClient = None
 yfinance_client: YFinanceClient = None
 news_aggregator: NewsAggregator = None
 db_manager: DatabaseManager = None
+trade_logger = None  # Phase II: Trade performance tracking
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
-    global analysis_engine, schwab_client, alpha_vantage_client, yfinance_client, news_aggregator, db_manager
+    global analysis_engine, schwab_client, alpha_vantage_client, yfinance_client, news_aggregator, db_manager, trade_logger
 
     # Startup
     logger.info("Starting Trading Bot API...")
@@ -119,6 +121,10 @@ async def lifespan(app: FastAPI):
         else:
             logger.warning("  News API keys not found, news features disabled")
 
+        # Initialize trade logger (Phase II)
+        trade_logger = get_trade_logger()
+        logger.info("Trade logger initialized (Phase II)")
+
         logger.info("= Trading Bot API ready!")
 
     except Exception as e:
@@ -129,6 +135,8 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("Shutting down Trading Bot API...")
+    if trade_logger:
+        await trade_logger.close()
 
 
 # Create FastAPI app
@@ -418,6 +426,40 @@ async def analyze_ticker(request: AnalysisRequest):
         })
 
         logger.info(f" Analysis complete: {len(trade_plans)} plans, confidence {response.highest_confidence}")
+
+        # 9. Log trade signals to database (Phase II)
+        if trade_logger:
+            try:
+                import asyncio
+                signals_to_log = []
+                
+                for plan in trade_plans:
+                    signal_data = {
+                        'trade_id': plan.trade_id,
+                        'ticker': plan.ticker,
+                        'trade_type': plan.trade_type.value,
+                        'direction': plan.direction.value,
+                        'entry': float(plan.entry),
+                        'stop': float(plan.stop),
+                        'target': float(plan.target),
+                        'target2': float(plan.target2) if plan.target2 else None,
+                        'confidence': plan.confidence,
+                        'edges_applied': [{'name': e.name, 'applied': e.applied, 'value': e.value} for e in plan.edges],
+                        'rationale': plan.rationale,
+                        'timeframe_signals': plan.timeframe_signals,
+                        'atr_value': float(plan.atr_value) if plan.atr_value else None,
+                        'market_volatility': plan.market_volatility,
+                        'spy_bias': plan.spy_bias,
+                        'news_summary': plan.news_summary
+                    }
+                    signals_to_log.append(signal_data)
+                
+                # Log all signals
+                logged_count = await trade_logger.log_multiple_signals(signals_to_log)
+                logger.debug(f"Logged {logged_count}/{len(signals_to_log)} trade signals to database")
+            except Exception as log_error:
+                logger.warning(f"Trade logging failed (non-critical): {str(log_error)}")
+
 
         return response
 
