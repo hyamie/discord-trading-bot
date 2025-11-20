@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse ticker from Discord message\nconst content = ($input.item.json.body.content || '').trim();\n\n// Ignore messages from bots\nif ($input.item.json.body.author?.bot) {\n  return [];\n}\n\n// Don't process if message doesn't look like a ticker request\nif (!content || content.length < 1) {\n  return [];\n}\n\n// Accept forms like: SPY, $AAPL, analyze MSFT, !ticker SPY, check QQQ\nconst tickerMatch = content.toUpperCase().match(/(?:^|\\s)(?:\\$|!ticker\\s+|analyze\\s+|check\\s+)?([A-Z]{1,5})(?:\\s|$)/);\n\nif (!tickerMatch) {\n  return [];\n}\n\nconst ticker = tickerMatch[1];\n\n// Determine trade type from message content\nlet trade_type = 'both'; // default - always return both day and swing plans\nif (content.toLowerCase().includes('day only')) {\n  trade_type = 'day';\n} else if (content.toLowerCase().includes('swing only')) {\n  trade_type = 'swing';\n}\n\nreturn {\n  ticker: ticker,\n  trade_type: trade_type,\n  channel_id: $input.item.json.body.channel_id,\n  message_id: $input.item.json.body.id,\n  author: $input.item.json.body.author?.username || 'Unknown'\n};"
+        "jsCode": "// FIXED: Account for double body nesting\nconst data = $input.item.json.body.body || $input.item.json.body;\nconst content = data.content || '';\n\n// Ignore bot messages\nif (data.author?.bot) {\n  return [];\n}\n\n// Extract ticker - support $SPY or !ticker SPY formats\nlet ticker = null;\n\nif (content.startsWith('$')) {\n  // Format: $SPY\n  ticker = content.substring(1).toUpperCase().trim();\n} else if (content.toLowerCase().startsWith('!ticker ')) {\n  // Format: !ticker SPY\n  ticker = content.substring(8).toUpperCase().trim();\n}\n\n// If no ticker found, stop processing\nif (!ticker) {\n  return [];\n}\n\n// Remove any extra text after ticker (just get the symbol)\nticker = ticker.split(' ')[0];\n\n// Validate ticker is 1-5 letters\nif (!/^[A-Z]{1,5}$/.test(ticker)) {\n  return [];\n}\n\n// ALWAYS return 'both' - no need to parse trade type\nreturn [{\n  json: {\n    ticker: ticker,\n    trade_type: 'both',\n    channel_id: data.channel_id,\n    message_id: data.id,\n    author: data.author?.username || 'Unknown'\n  }\n}];"
       },
       "id": "parse-ticker",
       "name": "Parse Ticker & Trade Type",
@@ -30,18 +30,19 @@
         "method": "POST",
         "url": "https://discord-trading-bot-production-f596.up.railway.app/analyze",
         "authentication": "none",
-        "sendHeaders": true,
-        "headerParameters": {
+        "sendBody": true,
+        "bodyParameters": {
           "parameters": [
             {
-              "name": "Content-Type",
-              "value": "application/json"
+              "name": "ticker",
+              "value": "={{ $json.ticker }}"
+            },
+            {
+              "name": "trade_type",
+              "value": "={{ $json.trade_type }}"
             }
           ]
         },
-        "sendBody": true,
-        "contentType": "json",
-        "jsonBody": "={\n  \"ticker\": \"{{ $json.ticker }}\",\n  \"trade_type\": \"{{ $json.trade_type }}\"\n}",
         "options": {
           "timeout": 30000
         }

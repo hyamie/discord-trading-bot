@@ -381,7 +381,12 @@ async def analyze_ticker(request: AnalysisRequest):
 
         # 5. Convert to API models
         trade_plans = []
-        for plan in analysis_result['plans']:
+        for idx, plan in enumerate(analysis_result['plans'], 1):
+            # Generate trade_id: TICKER-YYYYMMDD-NNN format
+            date_str = datetime.now().strftime('%Y%m%d')
+            trade_id = f"{request.ticker.upper()}-{date_str}-{idx:03d}"
+            plan['trade_id'] = trade_id
+            plan['ticker'] = request.ticker.upper()  # Add ticker to plan
             trade_plans.append(convert_to_trade_analysis(plan))
 
         # 6. Build response
@@ -525,34 +530,44 @@ def convert_to_trade_analysis(plan: Dict) -> TradeAnalysis:
     Returns:
         TradeAnalysis Pydantic model
     """
+    # Calculate risk/reward ratio and percentages if not present
+    risk_reward = plan.get('risk_reward', plan.get('risk_reward_ratio', 2.0))
+    entry = plan['entry']
+    stop = plan['stop']
+    target = plan['target']
+
+    # Calculate risk and reward percentages
+    risk_pct = abs((entry - stop) / entry * 100) if entry else 0
+    reward_pct = abs((target - entry) / entry * 100) if entry else 0
+
     return TradeAnalysis(
         trade_id=plan['trade_id'],
-        ticker=plan['ticker'],
+        ticker=plan.get('ticker', ''),
         trade_type=TradeType(plan['trade_type']),
         direction=Direction(plan['direction']),
-        entry=plan['entry'],
-        stop=plan['stop'],
-        target=plan['target'],
+        entry=entry,
+        stop=stop,
+        target=target,
         target2=plan.get('target2'),
-        risk_reward_ratio=plan['risk_reward_ratio'],
-        risk_pct=plan['risk_pct'],
-        reward_pct=plan['reward_pct'],
+        risk_reward_ratio=risk_reward,
+        risk_pct=risk_pct,
+        reward_pct=reward_pct,
         confidence=plan['confidence'],
         edges=[
             EdgeInfo(
-                name=edge['name'],
-                applied=edge['applied'],
+                name=edge.get('name', 'Unknown'),
+                applied=edge.get('applied', False),
                 value=edge.get('value'),
                 description=edge.get('description')
             )
             for edge in plan.get('edges_applied', [])
         ],
         edges_count=len([e for e in plan.get('edges_applied', []) if e.get('applied')]),
-        rationale=plan['rationale'],
-        timeframe_signals=plan.get('timeframe_signals', {}),
+        rationale=plan.get('rationale', 'No rationale provided'),
+        timeframe_signals=plan.get('timeframes', plan.get('timeframe_signals', {})),
         spy_bias=plan.get('spy_bias'),
-        atr_value=plan['atr_value'],
-        market_volatility=plan['market_volatility'],
+        atr_value=plan.get('atr_value', 0),
+        market_volatility=plan.get('market_volatility', 'unknown'),
         analysis_timestamp=datetime.now(),
         news_summary=plan.get('news_summary')
     )
