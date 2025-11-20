@@ -555,14 +555,14 @@ def convert_to_trade_analysis(plan: Dict) -> TradeAnalysis:
         confidence=plan['confidence'],
         edges=[
             EdgeInfo(
-                name=edge.get('name', 'Unknown'),
-                applied=edge.get('applied', False),
-                value=edge.get('value'),
-                description=edge.get('description')
+                name=edge if isinstance(edge, str) else edge.get('name', 'Unknown'),
+                applied=True if isinstance(edge, str) else edge.get('applied', False),
+                value=None if isinstance(edge, str) else edge.get('value'),
+                description=None if isinstance(edge, str) else edge.get('description')
             )
             for edge in plan.get('edges_applied', [])
         ],
-        edges_count=len([e for e in plan.get('edges_applied', []) if e.get('applied')]),
+        edges_count=len([e for e in plan.get('edges_applied', []) if isinstance(e, str) or e.get('applied')]),
         rationale=plan.get('rationale', 'No rationale provided'),
         timeframe_signals=plan.get('timeframes', plan.get('timeframe_signals', {})),
         spy_bias=plan.get('spy_bias'),
