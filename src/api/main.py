@@ -535,10 +535,22 @@ def convert_to_trade_analysis(plan: Dict) -> TradeAnalysis:
     entry = plan['entry']
     stop = plan['stop']
     target = plan['target']
+    direction = plan['direction']
 
     # Calculate risk and reward percentages
     risk_pct = abs((entry - stop) / entry * 100) if entry else 0
     reward_pct = abs((target - entry) / entry * 100) if entry else 0
+
+    # Process timeframe signals and add entry_trigger field
+    timeframes = plan.get('timeframes', plan.get('timeframe_signals', {}))
+    for tf_name, tf_data in timeframes.items():
+        if isinstance(tf_data, dict):
+            # Add entry_trigger based on long_trigger/short_trigger
+            if 'entry_trigger' not in tf_data:
+                if direction == 'long':
+                    tf_data['entry_trigger'] = tf_data.get('long_trigger', False)
+                else:
+                    tf_data['entry_trigger'] = tf_data.get('short_trigger', False)
 
     return TradeAnalysis(
         trade_id=plan['trade_id'],
@@ -564,7 +576,7 @@ def convert_to_trade_analysis(plan: Dict) -> TradeAnalysis:
         ],
         edges_count=len([e for e in plan.get('edges_applied', []) if isinstance(e, str) or e.get('applied')]),
         rationale=plan.get('rationale', 'No rationale provided'),
-        timeframe_signals=plan.get('timeframes', plan.get('timeframe_signals', {})),
+        timeframe_signals=timeframes,
         spy_bias=plan.get('spy_bias'),
         atr_value=plan.get('atr_value', 0),
         market_volatility=plan.get('market_volatility', 'unknown'),
