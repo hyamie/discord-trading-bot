@@ -117,11 +117,15 @@ class TradeLogger:
                 if tf_signals:
                     # If it's a Pydantic model, convert to dict
                     # Pydantic v2 uses model_dump(), v1 uses dict()
+                    logger.debug(f"TimeframeSignals type: {type(tf_signals)}, has model_dump: {hasattr(tf_signals, 'model_dump')}, has dict: {hasattr(tf_signals, 'dict')}")
                     if hasattr(tf_signals, 'model_dump'):
                         timeframe_signals = json.dumps(tf_signals.model_dump())
+                        logger.debug("Used model_dump() for Pydantic v2")
                     elif hasattr(tf_signals, 'dict'):
                         timeframe_signals = json.dumps(tf_signals.dict())
+                        logger.debug("Used dict() for Pydantic v1")
                     else:
+                        logger.warning(f"TimeframeSignals doesn't have model_dump() or dict(), attempting direct serialization")
                         timeframe_signals = json.dumps(tf_signals)
                 else:
                     timeframe_signals = None
