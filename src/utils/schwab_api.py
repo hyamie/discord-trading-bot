@@ -277,8 +277,16 @@ class SchwabAPIClient:
             if end_datetime is None:
                 end_datetime = datetime.now()
 
+            # Schwab API requires periodType to be compatible with frequencyType
+            # periodType=day only allows frequencyType=minute
+            # For daily/weekly/monthly, we need periodType=month or year
+            if frequency_type in ['daily', 'weekly', 'monthly']:
+                # Use appropriate periodType for non-minute frequencies
+                period_type = 'year' if frequency_type == 'weekly' else 'month'
+
             params = {
                 'symbol': ticker.upper(),
+                'periodType': period_type,
                 'frequencyType': frequency_type,
                 'frequency': frequency,
                 'startDate': int(start_datetime.timestamp() * 1000),  # milliseconds
