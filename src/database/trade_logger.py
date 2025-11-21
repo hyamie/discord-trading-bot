@@ -116,7 +116,10 @@ class TradeLogger:
                 tf_signals = kwargs.get('timeframe_signals')
                 if tf_signals:
                     # If it's a Pydantic model, convert to dict
-                    if hasattr(tf_signals, 'dict'):
+                    # Pydantic v2 uses model_dump(), v1 uses dict()
+                    if hasattr(tf_signals, 'model_dump'):
+                        timeframe_signals = json.dumps(tf_signals.model_dump())
+                    elif hasattr(tf_signals, 'dict'):
                         timeframe_signals = json.dumps(tf_signals.dict())
                     else:
                         timeframe_signals = json.dumps(tf_signals)
