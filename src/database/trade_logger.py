@@ -37,7 +37,13 @@ class TradeLogger:
     async def get_connection(self) -> asyncpg.Connection:
         """Get database connection from pool"""
         if not self.pool:
-            self.pool = await asyncpg.create_pool(self.database_url, min_size=1, max_size=5)
+            # Disable statement cache for pgbouncer compatibility (Supabase pooler)
+            self.pool = await asyncpg.create_pool(
+                self.database_url,
+                min_size=1,
+                max_size=5,
+                statement_cache_size=0  # Required for pgbouncer in transaction/statement mode
+            )
 
         conn = await self.pool.acquire()
         # Set search path to use correct schema
