@@ -113,19 +113,25 @@ class TradeLogger:
                 # Extract optional fields with defaults
                 target2 = kwargs.get('target2')
                 # Convert Pydantic models to dict before JSON serialization
+                # timeframe_signals is Dict[str, TimeframeSignals] where values are Pydantic models
                 tf_signals = kwargs.get('timeframe_signals')
                 if tf_signals:
-                    # If it's a Pydantic model, convert to dict
-                    # Pydantic v2 uses model_dump(), v1 uses dict()
-                    logger.debug(f"TimeframeSignals type: {type(tf_signals)}, has model_dump: {hasattr(tf_signals, 'model_dump')}, has dict: {hasattr(tf_signals, 'dict')}")
-                    if hasattr(tf_signals, 'model_dump'):
+                    if isinstance(tf_signals, dict):
+                        # Convert each TimeframeSignals Pydantic model to dict
+                        converted = {}
+                        for key, value in tf_signals.items():
+                            if hasattr(value, 'model_dump'):
+                                converted[key] = value.model_dump()
+                            elif hasattr(value, 'dict'):
+                                converted[key] = value.dict()
+                            else:
+                                converted[key] = value
+                        timeframe_signals = json.dumps(converted)
+                    elif hasattr(tf_signals, 'model_dump'):
                         timeframe_signals = json.dumps(tf_signals.model_dump())
-                        logger.debug("Used model_dump() for Pydantic v2")
                     elif hasattr(tf_signals, 'dict'):
                         timeframe_signals = json.dumps(tf_signals.dict())
-                        logger.debug("Used dict() for Pydantic v1")
                     else:
-                        logger.warning(f"TimeframeSignals doesn't have model_dump() or dict(), attempting direct serialization")
                         timeframe_signals = json.dumps(tf_signals)
                 else:
                     timeframe_signals = None
