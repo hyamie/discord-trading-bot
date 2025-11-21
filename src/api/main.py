@@ -524,9 +524,9 @@ async def fetch_price_data(ticker: str, trade_type: TradeType) -> Dict:
             now = datetime.now()
 
             swing_configs = [
-                {'name': 'higher', 'frequency_type': 'weekly', 'frequency': 1, 'start_datetime': now - timedelta(days=180)},  # Weekly bars, 6 months
-                {'name': 'middle', 'frequency_type': 'daily', 'frequency': 1, 'start_datetime': now - timedelta(days=90)},    # Daily bars, 3 months
-                {'name': 'lower', 'frequency_type': 'minute', 'frequency': 30, 'start_datetime': now - timedelta(days=7)},    # 30m bars (best available), 1 week
+                {'name': 'higher_swing', 'frequency_type': 'weekly', 'frequency': 1, 'start_datetime': now - timedelta(days=180)},  # Weekly bars, 6 months
+                {'name': 'middle_swing', 'frequency_type': 'daily', 'frequency': 1, 'start_datetime': now - timedelta(days=90)},    # Daily bars, 3 months
+                {'name': 'lower_swing', 'frequency_type': 'minute', 'frequency': 30, 'start_datetime': now - timedelta(days=7)},    # 30m bars (best available), 1 week
             ]
 
             # Try Schwab first, then fallback to yfinance
