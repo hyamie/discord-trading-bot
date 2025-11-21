@@ -112,7 +112,16 @@ class TradeLogger:
 
                 # Extract optional fields with defaults
                 target2 = kwargs.get('target2')
-                timeframe_signals = json.dumps(kwargs.get('timeframe_signals')) if kwargs.get('timeframe_signals') else None
+                # Convert Pydantic models to dict before JSON serialization
+                tf_signals = kwargs.get('timeframe_signals')
+                if tf_signals:
+                    # If it's a Pydantic model, convert to dict
+                    if hasattr(tf_signals, 'dict'):
+                        timeframe_signals = json.dumps(tf_signals.dict())
+                    else:
+                        timeframe_signals = json.dumps(tf_signals)
+                else:
+                    timeframe_signals = None
                 atr_value = kwargs.get('atr_value')
                 market_volatility = kwargs.get('market_volatility')
                 spy_bias = kwargs.get('spy_bias')
