@@ -20,6 +20,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ ./src/
 COPY .env.example .env
 COPY start.sh .
+COPY test_network_connectivity.py .
 
 # Create necessary directories and make start script executable
 RUN mkdir -p logs data && chmod +x start.sh
