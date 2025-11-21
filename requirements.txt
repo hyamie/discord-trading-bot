@@ -24,8 +24,8 @@ asyncpg==0.29.0
 supabase==2.3.0
 
 # LLM Integration
-anthropic==0.7.8
-openai==1.6.1
+anthropic==0.40.0
+openai==1.54.0
 
 # OAuth and Authentication
 oauthlib==3.2.2
